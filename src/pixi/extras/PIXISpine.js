@@ -56,7 +56,7 @@ PIXI.SpineTextureLoader.prototype.load = function(page, file)
  */
 PIXI.SpineTextureLoader.prototype.unload = function(texture)
 {
-    texture.destroy();
+    texture.destroy(true);
 };
 
 /**
