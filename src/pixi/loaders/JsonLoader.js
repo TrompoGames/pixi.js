@@ -195,6 +195,9 @@ PIXI.JsonLoader.prototype.onJSONLoaded = function () {
 				var spineJsonParser = new spine.SkeletonJson(attachmentLoader);
 				var skeletonData = spineJsonParser.readSkeletonData(originalLoader.json);
 				PIXI.AnimCache[originalLoader.url] = skeletonData;
+				originalLoader.spine = skeletonData;
+				originalLoader.spineAtlas = spineAtlas;
+				originalLoader.spineAtlasLoader = atlasLoader;
 				// wait for textures to finish loading if needed
 				if (textureLoader.loadingCount > 0)
 				{
