@@ -19,7 +19,7 @@
             
         </div>
         <div class="yui3-u-1-4 version">
-            <em>API Docs for: 2.0.0</em>
+            <em>API Docs for: 2.1.0</em>
         </div>
     </div>
     <div id="bd" class="yui3-g">
@@ -68,6 +68,8 @@
                 <li><a href="../classes/BlurXFilter.html">BlurXFilter</a></li>
             
                 <li><a href="../classes/BlurYFilter.html">BlurYFilter</a></li>
+            
+                <li><a href="../classes/CanvasBuffer.html">CanvasBuffer</a></li>
             
                 <li><a href="../classes/CanvasGraphics.html">CanvasGraphics</a></li>
             
@@ -153,11 +155,15 @@
             
                 <li><a href="../classes/Rope.html">Rope</a></li>
             
+                <li><a href="../classes/Rounded Rectangle.html">Rounded Rectangle</a></li>
+            
                 <li><a href="../classes/SepiaFilter.html">SepiaFilter</a></li>
             
                 <li><a href="../classes/SmartBlurFilter.html">SmartBlurFilter</a></li>
             
                 <li><a href="../classes/Spine.html">Spine</a></li>
+            
+                <li><a href="../classes/SpineLoader.html">SpineLoader</a></li>
             
                 <li><a href="../classes/Sprite.html">Sprite</a></li>
             
@@ -346,20 +352,14 @@ PIXI.Graphics = function()
     this.isMask = false;
 
     /**
-     * The bounds of the graphic shape
-     *
-     * @property bounds
-     * @type Rectangle
-     */
-    this.bounds = new PIXI.Rectangle(0, 0, 0, 0);
-
-    /**
      * The bounds&#x27; padding used for bounds calculation.
      *
      * @property boundsPadding
      * @type Number
      */
     this.boundsPadding = 0;
+
+    this._localBounds = new PIXI.Rectangle(0,0,1,1);
 
     /**
      * Used to detect if the graphics object has changed. If this is set to true then the graphics object will be recalculated.
@@ -369,6 +369,24 @@ PIXI.Graphics = function()
      * @private
      */
     this.dirty = true;
+
+    /**
+     * Used to detect if the webgl graphics object has changed. If this is set to true then the graphics object will be recalculated.
+     * 
+     * @property webGLDirty
+     * @type Boolean
+     * @private
+     */
+    this.webGLDirty = false;
+
+    /**
+     * Used to detect if the cached sprite object needs to be updated.
+     * 
+     * @property cachedSpriteDirty
+     * @type Boolean
+     * @private
+     */
+    this.cachedSpriteDirty = false;
 
 };
 
@@ -396,6 +414,7 @@ Object.defineProperty(PIXI.Graphics.prototype, &quot;cacheAsBitmap&quot;, {
 
         if(this._cacheAsBitmap)
         {
+
             this._generateCachedSprite();
         }
         else
@@ -596,17 +615,17 @@ PIXI.Graphics.prototype.arcTo = function(x1, y1, x2, y2, radius)
 {
     if( this.currentPath )
     {
-        if(this.currentPath.shape.points.length === 0)this.currentPath.shape.points = [x1, y1];
+        if(this.currentPath.shape.points.length === 0)
+        {
+            this.currentPath.shape.points.push(x1, y1);
+        }
     }
     else
     {
         this.moveTo(x1, y1);
     }
 
-    // check that path contains subpaths
-    if( this.currentPath.length === 0)this.moveTo(x1, y1);
-    
-    var points = this.currentPath;
+    var points = this.currentPath.shape.points;
     var fromX = points[points.length-2];
     var fromY = points[points.length-1];
     var a1 = fromY - y1;
@@ -615,9 +634,14 @@ PIXI.Graphics.prototype.arcTo = function(x1, y1, x2, y2, radius)
     var b2 = x2   - x1;
     var mm = Math.abs(a1 * b2 - b1 * a2);
 
+
     if (mm &lt; 1.0e-8 || radius === 0)
     {
-        points.push(x1, y1);
+        if( points[points.length-2] !== x1 || points[points.length-1] !== y1)
+        {
+            //console.log(&quot;&gt;&gt;&quot;)
+            points.push(x1, y1);
+        }
     }
     else
     {
@@ -661,15 +685,19 @@ PIXI.Graphics.prototype.arc = function(cx, cy, radius, startAngle, endAngle, ant
 {
     var startX = cx + Math.cos(startAngle) * radius;
     var startY = cy + Math.sin(startAngle) * radius;
-    
+   
     var points = this.currentPath.shape.points;
 
-    if(points.length !== 0 &amp;&amp; points[points.length-2] !== startX || points[points.length-1] !== startY)
+    if(points.length === 0)
     {
         this.moveTo(startX, startY);
         points = this.currentPath.shape.points;
     }
-
+    else if( points[points.length-2] !== startX || points[points.length-1] !== startY)
+    {
+        points.push(startX, startY);
+    }
+  
     if (startAngle === endAngle)return this;
 
     if( !anticlockwise &amp;&amp; endAngle &lt;= startAngle )
@@ -781,21 +809,13 @@ PIXI.Graphics.prototype.drawRect = function( x, y, width, height )
  * @param width {Number} The width of the rectangle
  * @param height {Number} The height of the rectangle
  * @param radius {Number} Radius of the rectangle corners
- *//*
+ */
 PIXI.Graphics.prototype.drawRoundedRect = function( x, y, width, height, radius )
 {
-    if (!this.currentPath.points.length) this.graphicsData.pop();
-
-  //  this.currentPath = {lineWidth:this.lineWidth, lineColor:this.lineColor, lineAlpha:this.lineAlpha,
-    ///                    fillColor:this.fillColor, fillAlpha:this.fillAlpha, fill:this.filling,
-       //                 points:[x, y, width, height, radius], shape:new PIXI.Rectangle(x,y, width, height), type:PIXI.Graphics.RREC};
-
-    this.graphicsData.push(this.currentPath);
-    this.dirty = true;
+    this.drawShape(new PIXI.RoundedRectangle(x, y, width, height, radius));
 
     return this;
 };
-*/
 
 /**
  * Draws a circle.
@@ -859,8 +879,6 @@ PIXI.Graphics.prototype.clear = function()
     this.clearDirty = true;
     this.graphicsData = [];
 
-    this.bounds = null; //new PIXI.Rectangle();
-
     return this;
 };
 
@@ -875,10 +893,10 @@ PIXI.Graphics.prototype.clear = function()
  */
 PIXI.Graphics.prototype.generateTexture = function(resolution, scaleMode)
 {
-    resolution = resolution || 2;
+    resolution = resolution || 1;
 
     var bounds = this.getBounds();
-
+   
     var canvasBuffer = new PIXI.CanvasBuffer(bounds.width * resolution, bounds.height * resolution);
     
     var texture = PIXI.Texture.fromCanvas(canvasBuffer.canvas, scaleMode);
@@ -907,16 +925,20 @@ PIXI.Graphics.prototype._renderWebGL = function(renderSession)
 
     if(this._cacheAsBitmap)
     {
-        if(this.dirty)
+
+        if(this.dirty || this.cachedSpriteDirty)
         {
+
             this._generateCachedSprite();
+   
             // we will also need to update the texture on the gpu too!
-            PIXI.updateWebGLTexture(this._cachedSprite.texture.baseTexture, renderSession.gl);
-            
-            this.dirty =  false;
+            this.updateCachedSpriteTexture();
+
+            this.cachedSpriteDirty = false;
+            this.dirty = false;
         }
 
-        this._cachedSprite.alpha = this.alpha;
+        this._cachedSprite.worldAlpha = this.worldAlpha;
         PIXI.Sprite.prototype._renderWebGL.call(this._cachedSprite, renderSession);
 
         return;
@@ -935,6 +957,13 @@ PIXI.Graphics.prototype._renderWebGL = function(renderSession)
             renderSession.spriteBatch.currentBlendMode = this.blendMode;
             var blendModeWebGL = PIXI.blendModesWebGL[renderSession.spriteBatch.currentBlendMode];
             renderSession.spriteBatch.gl.blendFunc(blendModeWebGL[0], blendModeWebGL[1]);
+        }
+        
+        // check if the webgl graphic needs to be updated
+        if(this.webGLDirty)
+        {
+            this.dirty = true;
+            this.webGLDirty = false;
         }
         
         PIXI.WebGLGraphics.renderGraphics(this, renderSession);
@@ -974,39 +1003,60 @@ PIXI.Graphics.prototype._renderCanvas = function(renderSession)
     // if the sprite is not visible or the alpha is 0 then no need to render this element
     if(this.visible === false || this.alpha === 0 || this.isMask === true)return;
     
-    var context = renderSession.context;
-    var transform = this.worldTransform;
-    
-    if(this.blendMode !== renderSession.currentBlendMode)
+    if(this._cacheAsBitmap)
     {
-        renderSession.currentBlendMode = this.blendMode;
-        context.globalCompositeOperation = PIXI.blendModesCanvas[renderSession.currentBlendMode];
+        if(this.dirty || this.cachedSpriteDirty)
+        {
+            this._generateCachedSprite();
+   
+            // we will also need to update the texture
+            this.updateCachedSpriteTexture();
+
+            this.cachedSpriteDirty = false;
+            this.dirty = false;
+        }
+
+        this._cachedSprite.alpha = this.alpha;
+        PIXI.Sprite.prototype._renderCanvas.call(this._cachedSprite, renderSession);
+
+        return;
     }
-
-    if(this._mask)
+    else
     {
-        renderSession.maskManager.pushMask(this._mask, renderSession);
-    }
+        var context = renderSession.context;
+        var transform = this.worldTransform;
+        
+        if(this.blendMode !== renderSession.currentBlendMode)
+        {
+            renderSession.currentBlendMode = this.blendMode;
+            context.globalCompositeOperation = PIXI.blendModesCanvas[renderSession.currentBlendMode];
+        }
 
-    var resolution = renderSession.resolution;
-    context.setTransform(transform.a * resolution,
-                         transform.b * resolution,
-                         transform.c * resolution,
-                         transform.d * resolution,
-                         transform.tx * resolution,
-                         transform.ty * resolution);
+        if(this._mask)
+        {
+            renderSession.maskManager.pushMask(this._mask, renderSession);
+        }
 
-    PIXI.CanvasGraphics.renderGraphics(this, context);
+        var resolution = renderSession.resolution;
+        context.setTransform(transform.a * resolution,
+                             transform.b * resolution,
+                             transform.c * resolution,
+                             transform.d * resolution,
+                             transform.tx * resolution,
+                             transform.ty * resolution);
 
-     // simple render children!
-    for(var i=0, j=this.children.length; i&lt;j; i++)
-    {
-        this.children[i]._renderCanvas(renderSession);
-    }
+        PIXI.CanvasGraphics.renderGraphics(this, context);
 
-    if(this._mask)
-    {
-        renderSession.maskManager.popMask(renderSession);
+         // simple render children!
+        for(var i=0, j=this.children.length; i&lt;j; i++)
+        {
+            this.children[i]._renderCanvas(renderSession);
+        }
+
+        if(this._mask)
+        {
+            renderSession.maskManager.popMask(renderSession);
+        }
     }
 };
 
@@ -1018,19 +1068,30 @@ PIXI.Graphics.prototype._renderCanvas = function(renderSession)
  */
 PIXI.Graphics.prototype.getBounds = function( matrix )
 {
-    if(!this.bounds)this.updateBounds();
+    // return an empty object if the item is a mask!
+    if(this.isMask)return PIXI.EmptyRectangle;
 
-    var w0 = this.bounds.x;
-    var w1 = this.bounds.width + this.bounds.x;
+    if(this.dirty)
+    {
+        this.updateLocalBounds();
+        this.webGLDirty = true;
+        this.cachedSpriteDirty = true;
+        this.dirty = false;
+    }
 
-    var h0 = this.bounds.y;
-    var h1 = this.bounds.height + this.bounds.y;
+    var bounds = this._localBounds;
+
+    var w0 = bounds.x;
+    var w1 = bounds.width + bounds.x;
+
+    var h0 = bounds.y;
+    var h1 = bounds.height + bounds.y;
 
     var worldTransform = matrix || this.worldTransform;
 
     var a = worldTransform.a;
-    var b = worldTransform.c;
-    var c = worldTransform.b;
+    var b = worldTransform.b;
+    var c = worldTransform.c;
     var d = worldTransform.d;
     var tx = worldTransform.tx;
     var ty = worldTransform.ty;
@@ -1069,23 +1130,21 @@ PIXI.Graphics.prototype.getBounds = function( matrix )
     maxY = y3 &gt; maxY ? y3 : maxY;
     maxY = y4 &gt; maxY ? y4 : maxY;
 
-    var bounds = this._bounds;
+    this._bounds.x = minX;
+    this._bounds.width = maxX - minX;
 
-    bounds.x = minX;
-    bounds.width = maxX - minX;
+    this._bounds.y = minY;
+    this._bounds.height = maxY - minY;
 
-    bounds.y = minY;
-    bounds.height = maxY - minY;
-
-    return bounds;
+    return  this._bounds;
 };
 
 /**
  * Update the bounds of the object
  *
- * @method updateBounds
+ * @method updateLocalBounds
  */
-PIXI.Graphics.prototype.updateBounds = function()
+PIXI.Graphics.prototype.updateLocalBounds = function()
 {
     var minX = Infinity;
     var maxX = -Infinity;
@@ -1093,75 +1152,90 @@ PIXI.Graphics.prototype.updateBounds = function()
     var minY = Infinity;
     var maxY = -Infinity;
 
-    var shape, points, x, y, w, h;
+    if(this.graphicsData.length)
+    {
+        var shape, points, x, y, w, h;
 
-    for (var i = 0; i &lt; this.graphicsData.length; i++) {
-        var data = this.graphicsData[i];
-        var type = data.type;
-        var lineWidth = data.lineWidth;
-        shape = data.shape;
-       
+        for (var i = 0; i &lt; this.graphicsData.length; i++) {
+            var data = this.graphicsData[i];
+            var type = data.type;
+            var lineWidth = data.lineWidth;
+            shape = data.shape;
+           
 
-        if(type === PIXI.Graphics.RECT)
-        {
-            x = shape.x - lineWidth/2;
-            y = shape.y - lineWidth/2;
-            w = shape.width + lineWidth;
-            h = shape.height + lineWidth;
-
-            minX = x &lt; minX ? x : minX;
-            maxX = x + w &gt; maxX ? x + w : maxX;
-
-            minY = y &lt; minY ? y : minY;
-            maxY = y + h &gt; maxY ? y + h : maxY;
-        }
-        else if(type === PIXI.Graphics.CIRC)
-        {
-            x = shape.x;
-            y = shape.y;
-            w = shape.radius + lineWidth/2;
-            h = shape.radius + lineWidth/2;
-
-            minX = x - w &lt; minX ? x - w : minX;
-            maxX = x + w &gt; maxX ? x + w : maxX;
-
-            minY = y - h &lt; minY ? y - h : minY;
-            maxY = y + h &gt; maxY ? y + h : maxY;
-        }
-        else if(type === PIXI.Graphics.ELIP)
-        {
-            x = shape.x;
-            y = shape.y;
-            w = shape.width + lineWidth/2;
-            h = shape.height + lineWidth/2;
-
-            minX = x - w &lt; minX ? x - w : minX;
-            maxX = x + w &gt; maxX ? x + w : maxX;
-
-            minY = y - h &lt; minY ? y - h : minY;
-            maxY = y + h &gt; maxY ? y + h : maxY;
-        }
-        else
-        {
-            // POLY
-            points = shape.points;
-            
-            for (var j = 0; j &lt; points.length; j+=2)
+            if(type === PIXI.Graphics.RECT || type === PIXI.Graphics.RREC)
             {
+                x = shape.x - lineWidth/2;
+                y = shape.y - lineWidth/2;
+                w = shape.width + lineWidth;
+                h = shape.height + lineWidth;
 
-                x = points[j];
-                y = points[j+1];
-                minX = x-lineWidth &lt; minX ? x-lineWidth : minX;
-                maxX = x+lineWidth &gt; maxX ? x+lineWidth : maxX;
+                minX = x &lt; minX ? x : minX;
+                maxX = x + w &gt; maxX ? x + w : maxX;
 
-                minY = y-lineWidth &lt; minY ? y-lineWidth : minY;
-                maxY = y+lineWidth &gt; maxY ? y+lineWidth : maxY;
+                minY = y &lt; minY ? y : minY;
+                maxY = y + h &gt; maxY ? y + h : maxY;
+            }
+            else if(type === PIXI.Graphics.CIRC)
+            {
+                x = shape.x;
+                y = shape.y;
+                w = shape.radius + lineWidth/2;
+                h = shape.radius + lineWidth/2;
+
+                minX = x - w &lt; minX ? x - w : minX;
+                maxX = x + w &gt; maxX ? x + w : maxX;
+
+                minY = y - h &lt; minY ? y - h : minY;
+                maxY = y + h &gt; maxY ? y + h : maxY;
+            }
+            else if(type === PIXI.Graphics.ELIP)
+            {
+                x = shape.x;
+                y = shape.y;
+                w = shape.width + lineWidth/2;
+                h = shape.height + lineWidth/2;
+
+                minX = x - w &lt; minX ? x - w : minX;
+                maxX = x + w &gt; maxX ? x + w : maxX;
+
+                minY = y - h &lt; minY ? y - h : minY;
+                maxY = y + h &gt; maxY ? y + h : maxY;
+            }
+            else
+            {
+                // POLY
+                points = shape.points;
+                
+                for (var j = 0; j &lt; points.length; j+=2)
+                {
+
+                    x = points[j];
+                    y = points[j+1];
+                    minX = x-lineWidth &lt; minX ? x-lineWidth : minX;
+                    maxX = x+lineWidth &gt; maxX ? x+lineWidth : maxX;
+
+                    minY = y-lineWidth &lt; minY ? y-lineWidth : minY;
+                    maxY = y+lineWidth &gt; maxY ? y+lineWidth : maxY;
+                }
             }
         }
     }
+    else
+    {
+        minX = 0;
+        maxX = 0;
+        minY = 0;
+        maxY = 0;
+    }
 
     var padding = this.boundsPadding;
-    this.bounds = new PIXI.Rectangle(minX - padding, minY - padding, (maxX - minX) + padding * 2, (maxY - minY) + padding * 2);
+    
+    this._localBounds.x = minX - padding;
+    this._localBounds.width = (maxX - minX) + padding * 2;
+
+    this._localBounds.y = minY - padding;
+    this._localBounds.height = (maxY - minY) + padding * 2;
 };
 
 /**
@@ -1196,10 +1270,36 @@ PIXI.Graphics.prototype._generateCachedSprite = function()
    // this._cachedSprite.buffer.context.save();
     this._cachedSprite.buffer.context.translate(-bounds.x,-bounds.y);
     
+    // make sure we set the alpha of the graphics to 1 for the render.. 
+    this.worldAlpha = 1;
+
+    // now render the graphic..
     PIXI.CanvasGraphics.renderGraphics(this, this._cachedSprite.buffer.context);
     this._cachedSprite.alpha = this.alpha;
+};
 
-   // this._cachedSprite.buffer.context.restore();
+/**
+ * Updates texture size based on canvas size
+ *
+ * @method updateCachedSpriteTexture
+ * @private
+ */
+PIXI.Graphics.prototype.updateCachedSpriteTexture = function()
+{
+    var cachedSprite = this._cachedSprite;
+    var texture = cachedSprite.texture;
+    var canvas = cachedSprite.buffer.canvas;
+
+    texture.baseTexture.width = canvas.width;
+    texture.baseTexture.height = canvas.height;
+    texture.crop.width = texture.frame.width = canvas.width;
+    texture.crop.height = texture.frame.height = canvas.height;
+
+    cachedSprite._width = canvas.width;
+    cachedSprite._height = canvas.height;
+
+    // update the dirty base textures
+    texture.baseTexture.dirty();
 };
 
 /**
@@ -1279,6 +1379,8 @@ PIXI.Polygon.prototype.type = PIXI.Graphics.POLY;
 PIXI.Rectangle.prototype.type = PIXI.Graphics.RECT;
 PIXI.Circle.prototype.type = PIXI.Graphics.CIRC;
 PIXI.Ellipse.prototype.type = PIXI.Graphics.ELIP;
+PIXI.RoundedRectangle.prototype.type = PIXI.Graphics.RREC;
+
 
     </pre>
 </div>
