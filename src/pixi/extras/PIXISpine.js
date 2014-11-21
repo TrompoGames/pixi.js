@@ -15,7 +15,7 @@ PIXI.AnimCache = {};
 PIXI.SpineTextureLoader = function(basePath, crossorigin)
 {
     PIXI.EventTarget.call(this);
-    
+
     this.basePath = basePath;
     this.crossorigin = crossorigin;
     this.loadingCount = 0;
@@ -92,16 +92,29 @@ PIXI.Spine = function (url) {
         var slotContainer = new PIXI.DisplayObjectContainer();
         this.slotContainers.push(slotContainer);
         this.addChild(slotContainer);
-        if (!(attachment instanceof spine.RegionAttachment)) {
+
+        if (attachment instanceof spine.RegionAttachment)
+        {
+            var spriteName = attachment.rendererObject.name;
+            var sprite = this.createSprite(slot, attachment);
+            slot.currentSprite = sprite;
+            slot.currentSpriteName = spriteName;
+            slotContainer.addChild(sprite);
+        }
+        else if (attachment instanceof spine.MeshAttachment)
+        {
+            var mesh = this.createMesh(slot, attachment);
+            slot.currentMesh = mesh;
+            slot.currentMeshName = attachment.name;
+            slotContainer.addChild(mesh);
+        }
+        else
+        {
             continue;
         }
-        var spriteName = attachment.rendererObject.name;
-        var sprite = this.createSprite(slot, attachment);
-        slot.currentSprite = sprite;
-        slot.currentSpriteName = spriteName;
-        slotContainer.addChild(sprite);
+
     }
-    
+
     this.autoUpdate = true;
 };
 
@@ -148,41 +161,81 @@ PIXI.Spine.prototype.update = function(dt)
         var slot = drawOrder[i];
         var attachment = slot.attachment;
         var slotContainer = this.slotContainers[i];
-        if (!(attachment instanceof spine.RegionAttachment)) {
+        var type = attachment.type;
+        if (type === spine.AttachmentType.region)
+        {
+            if (attachment.rendererObject)
+            {
+                if (!slot.currentSpriteName || slot.currentSpriteName !== attachment.name)
+                {
+                    var spriteName = attachment.rendererObject.name;
+                    if (slot.currentSprite !== undefined)
+                    {
+                        slot.currentSprite.visible = false;
+                    }
+                    slot.sprites = slot.sprites || {};
+                    if (slot.sprites[spriteName] !== undefined)
+                    {
+                        slot.sprites[spriteName].visible = true;
+                    }
+                    else
+                    {
+                        var sprite = this.createSprite(slot, attachment);
+                        slotContainer.addChild(sprite);
+                    }
+                    slot.currentSprite = slot.sprites[spriteName];
+                    slot.currentSpriteName = spriteName;
+                }
+            }
+
+            var bone = slot.bone;
+
+            slotContainer.position.x = bone.worldX + attachment.x * bone.m00 + attachment.y * bone.m01;
+            slotContainer.position.y = bone.worldY + attachment.x * bone.m10 + attachment.y * bone.m11;
+            slotContainer.scale.x = bone.worldScaleX;
+            slotContainer.scale.y = bone.worldScaleY;
+
+            slotContainer.rotation = -(slot.bone.worldRotation * spine.degRad);
+
+            slot.currentSprite.tint = PIXI.rgb2hex([slot.r,slot.g,slot.b]);
+        }
+        else if (type === spine.AttachmentType.skinnedmesh)
+        {
+            if (!slot.currentMeshName || slot.currentMeshName !== attachment.name)
+            {
+                var meshName = attachment.name;
+                if (slot.currentMesh !== undefined)
+                {
+                    slot.currentMesh.visible = false;
+                }
+
+                slot.meshes = slot.meshes || {};
+
+                if (slot.meshes[meshName] !== undefined)
+                {
+                    slot.meshes[meshName].visible = true;
+                }
+                else
+                {
+                    var mesh = this.createMesh(slot, attachment);
+                    slotContainer.addChild(mesh);
+                }
+
+                slot.currentMesh = slot.meshes[meshName];
+                slot.currentMeshName = meshName;
+            }
+
+            attachment.computeWorldVertices(slot.bone.skeleton.x, slot.bone.skeleton.y, slot, slot.currentMesh.verticies);
+
+        }
+        else
+        {
             slotContainer.visible = false;
             continue;
         }
-
-        if (attachment.rendererObject) {
-            if (!slot.currentSpriteName || slot.currentSpriteName !== attachment.name) {
-                var spriteName = attachment.rendererObject.name;
-                if (slot.currentSprite !== undefined) {
-                    slot.currentSprite.visible = false;
-                }
-                slot.sprites = slot.sprites || {};
-                if (slot.sprites[spriteName] !== undefined) {
-                    slot.sprites[spriteName].visible = true;
-                } else {
-                    var sprite = this.createSprite(slot, attachment);
-                    slotContainer.addChild(sprite);
-                }
-                slot.currentSprite = slot.sprites[spriteName];
-                slot.currentSpriteName = spriteName;
-            }
-        }
         slotContainer.visible = true;
 
-        var bone = slot.bone;
-
-        slotContainer.position.x = bone.worldX + attachment.x * bone.m00 + attachment.y * bone.m01;
-        slotContainer.position.y = bone.worldY + attachment.x * bone.m10 + attachment.y * bone.m11;
-        slotContainer.scale.x = bone.worldScaleX;
-        slotContainer.scale.y = bone.worldScaleY;
-        
-        slotContainer.rotation = -(slot.bone.worldRotation * spine.degRad);
-
         slotContainer.alpha = slot.a;
-        slot.currentSprite.tint = PIXI.rgb2hex([slot.r,slot.g,slot.b]);
     }
 };
 
@@ -196,7 +249,7 @@ PIXI.Spine.prototype.autoUpdateTransform = function () {
     this.lastTime = this.lastTime || Date.now();
     var timeDelta = (Date.now() - this.lastTime) * 0.001;
     this.lastTime = Date.now();
-    
+
     this.update(timeDelta);
 
     PIXI.DisplayObjectContainer.prototype.updateTransform.call(this);
@@ -219,7 +272,7 @@ PIXI.Spine.prototype.createSprite = function (slot, attachment) {
                                         descriptor.rotate ? descriptor.width : descriptor.height);
     var spriteTexture = new PIXI.Texture(baseTexture, spriteRect);
     var sprite = new PIXI.Sprite(spriteTexture);
-    
+
     var baseRotation = descriptor.rotate ? Math.PI * 0.5 : 0.0;
     sprite.scale.set(descriptor.width / descriptor.originalWidth, descriptor.height / descriptor.originalHeight);
     sprite.rotation = baseRotation - (attachment.rotation * spine.degRad);
@@ -228,4 +281,25 @@ PIXI.Spine.prototype.createSprite = function (slot, attachment) {
     slot.sprites = slot.sprites || {};
     slot.sprites[descriptor.name] = sprite;
     return sprite;
+};
+
+PIXI.Spine.prototype.createMesh = function (slot, attachment) {
+    var descriptor = attachment.rendererObject;
+    var baseTexture = descriptor.page.rendererObject;
+    var texture = new PIXI.Texture(baseTexture);
+
+    var strip = new PIXI.Strip(texture);
+    strip.drawMode = PIXI.Strip.DrawModes.TRIANGLES;
+    strip.padding = 5;
+
+    strip.verticies = new PIXI.Float32Array(attachment.uvs.length);
+    strip.uvs = attachment.uvs;
+    strip.indices = attachment.triangles;
+
+    window.console.log('UVS: ' + strip.uvs.length);
+    window.console.log('INDICES: ' + strip.indices.length);
+
+    slot.meshes[attachment.name] = strip;
+
+    return strip;
 };
