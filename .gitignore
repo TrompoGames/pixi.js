@@ -5,3 +5,6 @@ node_modules
 *.log
 
 bin/pixi.dev.js.map
+bin/pixi.dev.js
+bin/pixi.js
+src/.idea/
