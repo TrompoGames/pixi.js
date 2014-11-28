@@ -279,7 +279,8 @@ PIXI.Strip.prototype._renderCanvasDrawTriangle = function(context, vertices, uvs
     var v0 = uvs[index0 + 1] * textureHeight, v1 = uvs[index1 + 1] * textureHeight, v2 = uvs[index2 + 1] * textureHeight;
 
     if (this.padding > 0) {
-        var padding = this.padding;
+        var paddingX = 1.5 / this.worldTransform.a;
+        var paddingY = 1.5 / this.worldTransform.d;
         var centerX = (x0 + x1 + x2) / 3;
         var centerY = (y0 + y1 + y2) / 3;
 
@@ -287,8 +288,8 @@ PIXI.Strip.prototype._renderCanvasDrawTriangle = function(context, vertices, uvs
         var normY = y0 - centerY;
 
         var dist = Math.sqrt(normX * normX + normY * normY);
-        x0 = centerX + (normX / dist) * (dist + padding);
-        y0 = centerY + (normY / dist) * (dist + padding);
+        x0 = centerX + (normX / dist) * (dist + paddingX);
+        y0 = centerY + (normY / dist) * (dist + paddingY);
 
         //
 
@@ -296,15 +297,15 @@ PIXI.Strip.prototype._renderCanvasDrawTriangle = function(context, vertices, uvs
         normY = y1 - centerY;
 
         dist = Math.sqrt(normX * normX + normY * normY);
-        x1 = centerX + (normX / dist) * (dist + padding);
-        y1 = centerY + (normY / dist) * (dist + padding);
+        x1 = centerX + (normX / dist) * (dist + paddingX);
+        y1 = centerY + (normY / dist) * (dist + paddingY);
 
         normX = x2 - centerX;
         normY = y2 - centerY;
 
         dist = Math.sqrt(normX * normX + normY * normY);
-        x2 = centerX + (normX / dist) * (dist + padding);
-        y2 = centerY + (normY / dist) * (dist + padding);
+        x2 = centerX + (normX / dist) * (dist + paddingX);
+        y2 = centerY + (normY / dist) * (dist + paddingY);
     }
 
     context.save();
