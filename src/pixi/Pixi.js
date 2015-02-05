@@ -7,7 +7,7 @@
  *
  * @module PIXI
  */
- 
+
 /**
  * Namespace-class for [pixi.js](http://www.pixijs.com/).
  *
@@ -21,7 +21,7 @@ var PIXI = PIXI || {};
 /**
  * @property {Number} WEBGL_RENDERER
  * @protected
- * @static 
+ * @static
  */
 PIXI.WEBGL_RENDERER = 0;
 /**
@@ -34,12 +34,12 @@ PIXI.CANVAS_RENDERER = 1;
 /**
  * Version of pixi that is loaded.
  * @property {String} VERSION
- * @static 
+ * @static
  */
-PIXI.VERSION = "v2.1.0";
+PIXI.VERSION = "v2.2.5";
 
 /**
- * Various blend modes supported by pixi.
+ * Various blend modes supported by pixi. IMPORTANT - The WebGL renderer only supports the NORMAL, ADD, MULTIPLY and SCREEN blend modes.
  * @property {Object} blendModes
  * @property {Number} blendModes.NORMAL
  * @property {Number} blendModes.ADD
@@ -105,6 +105,14 @@ if(typeof(Float32Array) != 'undefined')
 {
     PIXI.Float32Array = Float32Array;
     PIXI.Uint16Array = Uint16Array;
+
+    // Uint32Array and ArrayBuffer only used by WebGL renderer
+    // We can suppose that if WebGL is supported then typed arrays are supported too
+    // as they predate WebGL support for all browsers:
+    // see typed arrays support: http://caniuse.com/#search=TypedArrays
+    // see WebGL support: http://caniuse.com/#search=WebGL
+    PIXI.Uint32Array = Uint32Array;
+    PIXI.ArrayBuffer = ArrayBuffer;
 }
 else
 {
@@ -112,7 +120,7 @@ else
     PIXI.Uint16Array = Array;
 }
 
-// interaction frequency 
+// interaction frequency
 PIXI.INTERACTION_FREQUENCY = 30;
 PIXI.AUTO_PREVENT_DEFAULT = true;
 
@@ -168,14 +176,14 @@ PIXI.dontSayHello = false;
 PIXI.defaultRenderOptions = {
     view:null,
     transparent:false,
-    antialias:false, 
+    antialias:false,
     preserveDrawingBuffer:false,
     resolution:1,
     clearBeforeRender:true,
     autoResize:false
 }
 
-PIXI.sayHello = function (type) 
+PIXI.sayHello = function (type)
 {
     if(PIXI.dontSayHello)return;
 
