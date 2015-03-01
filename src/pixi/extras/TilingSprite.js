@@ -206,7 +206,7 @@ PIXI.TilingSprite.prototype._renderCanvas = function(renderSession)
 
     if (this._mask)
     {
-        renderSession.maskManager.pushMask(this._mask, context);
+        renderSession.maskManager.pushMask(this._mask, renderSession);
     }
 
     context.globalAlpha = this.worldAlpha;
@@ -267,7 +267,7 @@ PIXI.TilingSprite.prototype._renderCanvas = function(renderSession)
 
     if (this._mask)
     {
-        renderSession.maskManager.popMask(renderSession.context);
+        renderSession.maskManager.popMask(renderSession);
     }
 
     for (i=0,j=this.children.length; i<j; i++)
@@ -393,8 +393,16 @@ PIXI.TilingSprite.prototype.generateTilingTexture = function(forcePowerOfTwo)
     {
         if (isFrame)
         {
-            targetWidth = frame.width;
-            targetHeight = frame.height;
+            if (texture.trim)
+            {
+                targetWidth = texture.trim.width;
+                targetHeight = texture.trim.height;
+            }
+            else
+            {
+                targetWidth = frame.width;
+                targetHeight = frame.height;
+            }
 
             newTextureRequired = true;
         }
