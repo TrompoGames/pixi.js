@@ -90,8 +90,12 @@ PIXI.Spine = function (url) {
         var slot = this.skeleton.drawOrder[i];
         var attachment = slot.attachment;
         var slotContainer = new PIXI.DisplayObjectContainer();
+        slotContainer._spineIndex = this.slotContainers.length;
         this.slotContainers.push(slotContainer);
         this.addChild(slotContainer);
+
+        /* save the container in the slot, we'll use this to track possible draw order changes */
+        slot._pixiContainer = slotContainer;
 
         if (attachment instanceof spine.RegionAttachment)
         {
@@ -160,7 +164,19 @@ PIXI.Spine.prototype.update = function(dt)
     for (var i = 0, n = drawOrder.length; i < n; i++) {
         var slot = drawOrder[i];
         var attachment = slot.attachment;
-        var slotContainer = this.slotContainers[i];
+        var slotContainer = slot._pixiContainer;
+
+        /* check for draw order changes */
+        if (slotContainer !== this.slotContainers[i])
+        {
+            /* a draw order change happened, account for it */
+            var containerInPosition = this.slotContainers[i];
+            this.swapChildren(slotContainer, containerInPosition);
+            this.slotContainers[i] = slotContainer;
+            this.slotContainers[slotContainer._spineIndex] = containerInPosition;
+            containerInPosition._spineIndex = slotContainer._spineIndex;
+            slotContainer._spineIndex = i;
+        }
 
         if (!attachment)
         {
