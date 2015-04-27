@@ -249,6 +249,7 @@ PIXI.Spine.prototype.update = function(dt)
             }
 
             attachment.computeWorldVertices(slot.bone.skeleton.x, slot.bone.skeleton.y, slot, slot.currentMesh.vertices);
+            slot.currentMesh.uploadVertices = true;
 
         }
         else
