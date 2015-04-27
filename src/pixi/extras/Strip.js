@@ -49,6 +49,14 @@ PIXI.Strip = function(texture)
     this.dirty = true;
 
     /**
+     * Whether the vertices and only the vertices should be re-uploaded to the GPU.
+     *
+     * @property uploadVertices
+     * @type {boolean}
+     */
+    this.uploadVertices = false;
+
+    /**
      * The blend mode to be applied to the sprite. Set to PIXI.blendModes.NORMAL to remove any blend mode.
      *
      * @property blendMode
@@ -142,7 +150,11 @@ PIXI.Strip.prototype._renderStrip = function(renderSession)
     {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this._vertexBuffer);
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.vertices);
+        if (this.uploadVertices)
+        {
+            this.uploadVertices = false;
+            gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.vertices);
+        }
         gl.vertexAttribPointer(shader.aVertexPosition, 2, gl.FLOAT, false, 0, 0);
 
         // update the uvs
@@ -172,7 +184,7 @@ PIXI.Strip.prototype._renderStrip = function(renderSession)
 
         this.dirty = false;
         gl.bindBuffer(gl.ARRAY_BUFFER, this._vertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.DYNAMIC_DRAW);
         gl.vertexAttribPointer(shader.aVertexPosition, 2, gl.FLOAT, false, 0, 0);
 
         // update the uvs
