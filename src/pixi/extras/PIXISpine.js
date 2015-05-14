@@ -97,24 +97,34 @@ PIXI.Spine = function (url) {
         /* save the container in the slot, we'll use this to track possible draw order changes */
         slot._pixiContainer = slotContainer;
 
-        if (attachment instanceof spine.RegionAttachment)
+        if (attachment)
         {
-            var spriteName = attachment.rendererObject.name;
-            var sprite = this.createSprite(slot, attachment);
-            slot.currentSprite = sprite;
-            slot.currentSpriteName = spriteName;
-            slotContainer.addChild(sprite);
-        }
-        else if (attachment instanceof spine.MeshAttachment)
-        {
-            var mesh = this.createMesh(slot, attachment);
-            slot.currentMesh = mesh;
-            slot.currentMeshName = attachment.name;
-            slotContainer.addChild(mesh);
-        }
-        else
-        {
-            continue;
+            switch (attachment.type)
+            {
+                case spine.AttachmentType.region:
+                    var spriteName = attachment.rendererObject.name;
+                    var sprite = this.createSprite(slot, attachment);
+                    slot.currentSprite = sprite;
+                    slot.currentSpriteName = spriteName;
+                    slotContainer.addChild(sprite);
+                    break;
+
+                case spine.AttachmentType.boundingbox:
+                    /*  Ignore unsupported attachment type */
+                    break;
+
+                case spine.AttachmentType.mesh:
+                case spine.AttachmentType.skinnedmesh:
+                    var mesh = this.createMesh(slot, attachment);
+                    slot.currentMesh = mesh;
+                    slot.currentMeshName = attachment.name;
+                    slotContainer.addChild(mesh);
+                    break;
+
+                default:
+                    throw new Error('Unknown spine attachment type: ' + attachment.type);
+                    break;
+            }
         }
 
     }
@@ -222,7 +232,7 @@ PIXI.Spine.prototype.update = function(dt)
 
             slot.currentSprite.tint = PIXI.rgb2hex([slot.r,slot.g,slot.b]);
         }
-        else if (type === spine.AttachmentType.skinnedmesh)
+        else if (type === spine.AttachmentType.skinnedmesh || type === spine.AttachmentType.mesh)
         {
             if (!slot.currentMeshName || slot.currentMeshName !== attachment.name)
             {
