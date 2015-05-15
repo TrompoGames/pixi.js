@@ -123,7 +123,6 @@ PIXI.Spine = function (url) {
 
                 default:
                     throw new Error('Unknown spine attachment type: ' + attachment.type);
-                    break;
             }
         }
 
